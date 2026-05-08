@@ -33,7 +33,6 @@ typedef struct {
     int MDR;      //reg de dados
     int A, B;     //reg dos dados lidos do banco de regs
     int ULASaida; //saída da ula
-    int Zero; 
     int pc;
 }Banco;
 
@@ -277,15 +276,24 @@ void ler_registradores(multiciclo *cpu) {
 // Escrita no banco
 // Controlada por EscReg e RegDst
 void escrever_registrador(multiciclo *cpu, int valor) {
+    // Só escreve se o sinal de controle EscReg estiver ativo (1)
     if (cpu->sinais.EscReg) {
-        int rt = (cpu->banco_regs.IR >> 6) & 0x7;  // bits [8-6]
-        int rd = (cpu->banco_regs.IR >> 3) & 0x7;  // bits [5-3]
         
-        // RegDst define qual registrador escrever
-        // 0 = rt (tipo I), 1 = rd (tipo R)
-        int reg_dest = (cpu->sinais.RegDst) ? rd : rt;
+        // Em vez de fazer contas com bits, pegamos os valores 
+        // que a função converterInstrucao já salvou no IR
+        int rt = cpu->banco_regs.IR.rt;
+        int rd = cpu->banco_regs.IR.rd;
         
-        cpu->banco_regs.reg[reg_dest] = valor;
+        // RegDst define o destino:
+        // 1 = tipo R (escreve em RD)
+        // 0 = tipo I (escreve em RT, ex: lw ou addi)
+        int reg_dest = (cpu->sinais.RegDst == 1) ? rd : rt;
+        
+        // Segurança: garante que não tentamos escrever no registrador 0 
+        // (em muitas arquiteturas o reg 0 é sempre zero)
+        if (reg_dest >= 0 && reg_dest < 8) {
+            cpu->banco_regs.reg[reg_dest] = valor;
+        }
     }
 }
 
@@ -308,7 +316,7 @@ int executar_ula(multiciclo*cpu, int entrada_a, int entrada_b) {
     }
     
     // Flag Zero (usado pelo beq)
-    cpu->banco_regs.Zero = (resultado == 0) ? 1 : 0;
+    cpu->banco_regs.reg[0] = (resultado == 0) ? 1 : 0;
     
     // Limita a 8 bits
     resultado = resultado & 0xFF;
