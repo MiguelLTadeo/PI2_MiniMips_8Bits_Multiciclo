@@ -72,7 +72,7 @@ typedef struct {                // 8 bits
 void converterInstrucao(instrucao *nova_instrucao) {
     char opcode[5], rs[4], rt[4], rd[4], funct[4], imm[7], addr[13];
 
-    // Extrai o Opcode (primeiros 4 bits)
+    // opcode nos primeiros 4 bits
     strncpy(opcode, nova_instrucao->inst_char, 4);
     opcode[4] = '\0';
     nova_instrucao->opcode = (int)strtol(opcode, NULL, 2);
@@ -116,18 +116,18 @@ void converterInstrucao(instrucao *nova_instrucao) {
             rt[3] = '\0';
             nova_instrucao->rt = (int)strtol(rt, NULL, 2);
 
-            // Imediato (6 bits: 10 a 15)
+            // Imediato
             strncpy(imm, nova_instrucao->inst_char + 10, 6);
             imm[6] = '\0';
             nova_instrucao->imm = (int)strtol(imm, NULL, 2);
 
-            // Extensão de sinal (Complemento de 2 para 6 bits)
+            // complemento de 2
             if (nova_instrucao->inst_char[10] == '1') {
                 nova_instrucao->imm -= 64; 
             }
             break;
 
-        case 2: // Tipo-J (jump)
+        case 2: // Tipo-J
             nova_instrucao->tipo_inst = tipo_J;
             strncpy(addr, nova_instrucao->inst_char + 4, 12); 
             addr[12] = '\0'; 
@@ -239,7 +239,7 @@ void imprimirDetalhesInstrucoes(memoria_instrucao *mInst) {
     printf(" -----|------------------|------|----|----|----|----|-------|----------\n");
 
     for (int i = 0; i < 128; i++) {
-        // Só printamos se a instrução não for zero (ou se você quiser ver tudo, remova o if)
+        // Só printamos se a instrução não for zero 
         if (strcmp(mInst->inst[i].inst_char, "0000000000000000") != 0) {
             
             char tipo;
@@ -247,7 +247,7 @@ void imprimirDetalhesInstrucoes(memoria_instrucao *mInst) {
             else if (mInst->inst[i].tipo_inst == tipo_I) tipo = 'I';
             else tipo = 'J';
 
-            // Print formatado com larguras fixas para manter o alinhamento
+           
             printf(" %03d  | %s |  %c   | %02d | %02d | %02d | %02d |   %d   | %d\n",
                    i, 
                    mInst->inst[i].inst_char,
@@ -264,8 +264,8 @@ void imprimirDetalhesInstrucoes(memoria_instrucao *mInst) {
     printf("===================================================================================================\n\n");
 }
 
-// Leitura do banco
-// Slide 19: rs = RI[11-9], rt = RI[8-6], rd = RI[5-3]
+
+// rs = RI[11-9], rt = RI[8-6], rd = RI[5-3]
 void ler_registradores(multiciclo *cpu) {
     int rs = cpu->banco_regs.IR.rs;
     int rt = cpu->banco_regs.IR.rt;  // bits [8-6]
@@ -274,24 +274,20 @@ void ler_registradores(multiciclo *cpu) {
     cpu->banco_regs.B = cpu->banco_regs.reg[rt];
 }
 
-// Escrita no banco
-// Controlada por EscReg e RegDst
+
 void escrever_registrador(multiciclo *cpu, int valor) {
     // Só escreve se o sinal de controle EscReg estiver ativo (1)
     if (cpu->sinais.EscReg) {
-        
-        // Em vez de fazer contas com bits, pegamos os valores 
-        // que a função converterInstrucao já salvou no IR
+    
+        // pegamos os valores que a função  já salvou no IR
         int rt = cpu->banco_regs.IR.rt;
         int rd = cpu->banco_regs.IR.rd;
         
-        // RegDst define o destino:
         // 1 = tipo R (escreve em RD)
         // 0 = tipo I (escreve em RT, ex: lw ou addi)
         int reg_dest = (cpu->sinais.RegDst == 1) ? rd : rt;
         
-        // Segurança: garante que não tentamos escrever no registrador 0 
-        // (em muitas arquiteturas o reg 0 é sempre zero)
+        // garante que não tentamos escrever no registrador 0 
         if (reg_dest >= 0 && reg_dest < 8) {
             cpu->banco_regs.reg[reg_dest] = valor;
         }
@@ -347,7 +343,6 @@ void executar_ula_com_mux(multiciclo *cpu) {
             // Extensão de sinal de 6 bits para 8 bits
             // RI[5-0]
             int imm = cpu->banco_regs.IR.imm;
-            // Se bit 5 = 1, estende com 1s
             if (imm & 0x20) imm |= 0xC0;
             entrada_b = imm;
             break;
@@ -358,7 +353,6 @@ void executar_ula_com_mux(multiciclo *cpu) {
 }
 
 void definir_sinais(multiciclo *cpu) {
-    // Zera todos os sinais primeiro
     cpu->sinais.PCEsc      = 0;
     cpu->sinais.IouD       = 0;
     cpu->sinais.EscMem     = 0;
@@ -435,7 +429,7 @@ void definir_sinais(multiciclo *cpu) {
             cpu->sinais.RegDst     = 1;
             break;
             
-        case 8: // Fim tipo R (escreve registrador)
+        case 8: // Fim tipo R 
             cpu->sinais.RegDst     = 1;    // escreve em rd
             cpu->sinais.EscReg     = 1;
             cpu->sinais.MemParaReg = 0;
@@ -480,7 +474,7 @@ void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
     // Define sinais do estado atual
     definir_sinais(cpu);
     
-    // Endereço de memória (IouD)
+   
     // 0 = PC, 1 = ULASaída
     int endereco_mem = (cpu->sinais.IouD == 0) 
                        ? cpu->banco_regs.pc
@@ -488,7 +482,7 @@ void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
     
     switch(cpu->estado) {
         case 0: // Busca
-            // IR = Mem[PC]  -> Aqui usamos mem->
+            // IR = Mem[PC
             cpu->banco_regs.IR = mem->inst[cpu->banco_regs.pc];
             // ULA calcula PC + 1
             executar_ula_com_mux(cpu);
@@ -497,11 +491,9 @@ void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
             cpu->estado = 1;
             break;
             
-        case 1: { // Decodificação (COM CHAVES)
-            // Lê registradores
+        case 1: { // Decodificação
             ler_registradores(cpu);
-            // ULA calcula endereço branch
-            executar_ula_com_mux(cpu);
+            executar_ula_com_mux(cpu);// ULA calcula endereço branch
             // Salva em ULASaida para possível branch
             // Transição baseada no opcode
             int opcode = cpu->banco_regs.IR.opcode;
@@ -509,7 +501,7 @@ void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
             break;
         }
             
-        case 2: { // Cálculo endereço (COM CHAVES)
+        case 2: { // Cálculo endereço
             executar_ula_com_mux(cpu);
             int opcode = cpu->banco_regs.IR.opcode;
             if (opcode == 0xB) cpu->estado = 3;      // lw
@@ -643,7 +635,7 @@ void simular(multiciclo *cpu, memoria_instrucao *mem) {
         sleep(1);
         
         
-        // Condição de parada (adapte conforme o professor)
+        // Condição de parada 
         if (cpu->banco_regs.pc >= 128) break;      // saiu da área de instruções
         if (cpu->total_clocks > 1000) break; // proteção
     }
@@ -658,7 +650,7 @@ void simular(multiciclo *cpu, memoria_instrucao *mem) {
 }
 
 void clock(multiciclo *cpu, memoria_instrucao *mem) {
-    // Definindo as cores do arco-íris terminal (Padrão ANSI)
+    // Definindo as cores 
     const char *RST  = "\033[0m";    // Reseta a cor
     const char *PNK  = "\033[1;35m"; // Rosa / Magenta
     const char *CYN  = "\033[1;36m"; // Ciano
@@ -668,8 +660,8 @@ void clock(multiciclo *cpu, memoria_instrucao *mem) {
     printf("\n");
     printf("%s╔════════════════════════════════════════════════════════════════╗%s\n", PNK, RST);
     
-    // Cabeçalho do Relógio
-    printf("%s║ ⏳✨ PULSO DE CLOCK: %s%-41d %s║%s\n", PNK, YEL, cpu->total_clocks, PNK, RST);
+    // Cabeçalho 
+    printf("%s║    PULSO DE CLOCK: %s%-41d %s║%s\n", PNK, YEL, cpu->total_clocks, PNK, RST);
     printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
     
     // Status do Sistema
@@ -677,12 +669,12 @@ void clock(multiciclo *cpu, memoria_instrucao *mem) {
     printf("%s║ %s🚥 Estado   %s: %d -> %-43s%s║%s\n", PNK, CYN, RST, cpu->estado, traduzEstado(cpu->estado), PNK, RST);
     printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
     
-    // Banco de Registradores (O VIP da Memória)
-    printf("%s║ 💎💅 BANCO DE REGISTRADORES VIP 💅💎                           ║%s\n", PNK, RST);
+    // Banco de Registradores 
+    printf("%s║ 💎  BANCO DE REGISTRADORES      💎                           ║%s\n", PNK, RST);
     printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
     
-    // Registradores formatados em duas linhas elegantes
-// Registradores formatados em duas linhas elegantes e alinhadas
+    // Registradores
+
     printf("%s║%s  $0 = %s%-6d%s | $1 = %s%-6d%s | $2 = %s%-6d%s | $3 = %s%-6d%s         ║%s\n", 
            PNK, CYN, RST, cpu->banco_regs.reg[0], 
            CYN, RST, cpu->banco_regs.reg[1], 
@@ -699,10 +691,8 @@ void clock(multiciclo *cpu, memoria_instrucao *mem) {
            
     printf("%s╚════════════════════════════════════════════════════════════════╝%s\n", PNK, RST);
 
-    // Executa a engrenagem
+ 
     
-
-    // Printa a instrução com um toque de magia verde
     printf(" %s🔮 Magia Assembly: %s", PNK, GRN);
     printaInstrucaoAsm(mem->inst[cpu->banco_regs.pc]);
     executar_estado(cpu, mem);
