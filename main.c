@@ -38,7 +38,8 @@ int main(){
 
     do{
         printf("1 - Carregar memória (.mem)\n");
-        printf("3 - Imprimir memórias (instruções e dados)\n");
+        printf("2 - Imprimir instruções\n");
+        printf("3 - Imprimir memória(dados e intruções)\n");
         printf("4 - Imprimir banco de registradores\n");
         printf("5 - Imprimir todo o simulador (registradores e memórias)\n");
         printf("6 - Salvar .asm\n");
@@ -46,6 +47,7 @@ int main(){
         printf("8 - Executar Programa (run)\n");
         printf("9 - Dar um clock (Step)\n");
         printf("10 - Volta uma instrução (Back)\n");
+        printf("12 - Fechar programa\n");
 
         scanf("%d", &op);
 
@@ -60,20 +62,20 @@ int main(){
             break;
             case 3:
                 imprimirMemoria(&mem_inst);
-
             break;
             case 4:
 
 
             break;
             case 5:
-
+                imprimirMemoria(&mem_inst);
+                // falta algo pra printar os regs aq
             break;
             case 6:
-
+                //salvar asm
             break;
             case 7:
-
+                //salvar .dat
             break;
             case 8:
                 printf("\nIniciando Simulacao...\n");
@@ -81,14 +83,12 @@ int main(){
                 simular(&cpu, mem_inst); 
                 break;
 
-                
             break;
             case 9:
                 clock(&cpu, mem_inst);
             break;
             case 10:
-
-            
+            //back
             break;
             default:
 
