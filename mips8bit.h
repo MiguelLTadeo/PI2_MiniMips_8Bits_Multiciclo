@@ -73,7 +73,7 @@ void carregarInstrucoes(memoria_instrucao *mInst, FILE *fp);
 
 void imprimirMemoria(memoria_instrucao *mInst);
 
-void imprimirDetalhesInstrucoes(memoria_instrucao *mInst);
+void imprimirDetalhesInstrucoes(memoria_instrucao mInst);
 
 void ler_registradores(multiciclo *cpu);
 
@@ -85,14 +85,14 @@ void executar_ula_com_mux(multiciclo *cpu);
 
 void definir_sinais(multiciclo *cpu);
 
-void executar_estado(multiciclo *cpu, memoria_instrucao mem);
+void executar_estado(multiciclo *cpu, memoria_instrucao *mem);
 
 void transicionar_estado(multiciclo *cpu, int opcode);
 
-void simular(multiciclo *cpu, memoria_instrucao *mem);
+void simular(multiciclo *cpu, memoria_instrucao mem);
 
 void printaInstrucaoAsm(instrucao inst);
 
-void clock(multiciclo *cpu, memoria_instrucao *mem);
+void clock(multiciclo *cpu, memoria_instrucao mem);
 
 char *traduzEstado(int estado);

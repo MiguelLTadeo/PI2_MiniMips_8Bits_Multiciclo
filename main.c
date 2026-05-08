@@ -11,6 +11,9 @@ int main(){
 
     multiciclo cpu;
 
+    cpu.estado = 0;
+    cpu.total_clocks = 0;
+
     // Zera a CPU e a memória logo ao abrir o programa
     memset(&cpu, 0, sizeof(multiciclo));
     for(int i = 0; i < 256; i++) {
@@ -53,7 +56,7 @@ int main(){
                 lerMemoria(&mem_inst);
             break;
             case 2:
-                imprimirDetalhesInstrucoes(&mem_inst);
+                imprimirDetalhesInstrucoes(mem_inst);
             break;
             case 3:
                 imprimirMemoria(&mem_inst);
@@ -74,16 +77,14 @@ int main(){
             break;
             case 8:
                 printf("\nIniciando Simulacao...\n");
-
-                simular(&cpu, &mem_inst); 
+                imprimirDetalhesInstrucoes(mem_inst);
+                simular(&cpu, mem_inst); 
                 break;
 
                 
             break;
             case 9:
-             clock(&cpu, &mem_inst);
-
-             
+                clock(&cpu, mem_inst);
             break;
             case 10:
 

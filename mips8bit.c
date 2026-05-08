@@ -231,7 +231,8 @@ void imprimirMemoria(memoria_instrucao *mInst) {
 
 
 
-void imprimirDetalhesInstrucoes(memoria_instrucao *mInst) {
+// Note que agora não tem o '*' no parâmetro
+void imprimirDetalhesInstrucoes(memoria_instrucao mInst) {
     printf("\n===================================================================================================\n");
     printf("                                  DECODIFICACAO DE INSTRUCOES (0-127)                             \n");
     printf("===================================================================================================\n");
@@ -239,25 +240,24 @@ void imprimirDetalhesInstrucoes(memoria_instrucao *mInst) {
     printf(" -----|------------------|------|----|----|----|----|-------|----------\n");
 
     for (int i = 0; i < 128; i++) {
-        // Só printamos se a instrução não for zero 
-        if (strcmp(mInst->inst[i].inst_char, "0000000000000000") != 0) {
+        // Usamos .inst[i] em vez de ->inst[i]
+        if (strcmp(mInst.inst[i].inst_char, "0000000000000000") != 0) {
             
             char tipo;
-            if (mInst->inst[i].tipo_inst == tipo_R) tipo = 'R';
-            else if (mInst->inst[i].tipo_inst == tipo_I) tipo = 'I';
+            if (mInst.inst[i].tipo_inst == tipo_R) tipo = 'R';
+            else if (mInst.inst[i].tipo_inst == tipo_I) tipo = 'I';
             else tipo = 'J';
 
-           
             printf(" %03d  | %s |  %c   | %02d | %02d | %02d | %02d |   %d   | %d\n",
                    i, 
-                   mInst->inst[i].inst_char,
+                   mInst.inst[i].inst_char,
                    tipo,
-                   mInst->inst[i].opcode,
-                   mInst->inst[i].rs,
-                   mInst->inst[i].rt,
-                   mInst->inst[i].rd,
-                   mInst->inst[i].funct,
-                   (tipo == 'J' ? mInst->inst[i].addr : mInst->inst[i].imm)
+                   mInst.inst[i].opcode,
+                   mInst.inst[i].rs,
+                   mInst.inst[i].rt,
+                   mInst.inst[i].rd,
+                   mInst.inst[i].funct,
+                   (tipo == 'J' ? mInst.inst[i].addr : mInst.inst[i].imm)
             );
         }
     }
@@ -619,19 +619,18 @@ char *traduzEstado(int estado){
     }
 }
 
-void simular(multiciclo *cpu, memoria_instrucao *mem) {
+void simular(multiciclo *cpu, memoria_instrucao mem) {
     cpu->estado = 0;
     cpu->total_clocks = 0;
-    
     while(1) {
         printf("\n=== Clock %d | Estado %d (%s) | PC %d ===\n",
             cpu->total_clocks, 
             cpu->estado, 
             traduzEstado(cpu->estado), 
             cpu->banco_regs.pc);
-        printaInstrucaoAsm(mem->inst[cpu->banco_regs.pc]);
         
-        executar_estado(cpu, mem);
+        executar_estado(cpu, &mem);
+        printaInstrucaoAsm(cpu->banco_regs.IR);
         sleep(1);
         
         
@@ -649,54 +648,15 @@ void simular(multiciclo *cpu, memoria_instrucao *mem) {
     }
 }
 
-void clock(multiciclo *cpu, memoria_instrucao *mem) {
-    // Definindo as cores 
-    const char *RST  = "\033[0m";    // Reseta a cor
-    const char *PNK  = "\033[1;35m"; // Rosa / Magenta
-    const char *CYN  = "\033[1;36m"; // Ciano
-    const char *YEL  = "\033[1;33m"; // Amarelo
-    const char *GRN  = "\033[1;32m"; // Verde
-
-    printf("\n");
-    printf("%s╔════════════════════════════════════════════════════════════════╗%s\n", PNK, RST);
+void clock(multiciclo *cpu, memoria_instrucao mem) {
+    printf("\n=== Clock %d | Estado %d (%s) | PC %d ===\n",
+        cpu->total_clocks, 
+        cpu->estado, 
+        traduzEstado(cpu->estado), 
+        cpu->banco_regs.pc);
     
-    // Cabeçalho 
-    printf("%s║    PULSO DE CLOCK: %s%-41d %s║%s\n", PNK, YEL, cpu->total_clocks, PNK, RST);
-    printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
-    
-    // Status do Sistema
-    printf("%s║ %s📍 PC Atual %s: %-49d%s║%s\n", PNK, CYN, RST, cpu->banco_regs.pc, PNK, RST);
-    printf("%s║ %s🚥 Estado   %s: %d -> %-43s%s║%s\n", PNK, CYN, RST, cpu->estado, traduzEstado(cpu->estado), PNK, RST);
-    printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
-    
-    // Banco de Registradores 
-    printf("%s║ 💎  BANCO DE REGISTRADORES      💎                           ║%s\n", PNK, RST);
-    printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
-    
-    // Registradores
-
-    printf("%s║%s  $0 = %s%-6d%s | $1 = %s%-6d%s | $2 = %s%-6d%s | $3 = %s%-6d%s         ║%s\n", 
-           PNK, CYN, RST, cpu->banco_regs.reg[0], 
-           CYN, RST, cpu->banco_regs.reg[1], 
-           CYN, RST, cpu->banco_regs.reg[2], 
-           CYN, RST, cpu->banco_regs.reg[3], 
-           PNK, RST);
-           
-    printf("%s║%s  $4 = %s%-6d%s | $5 = %s%-6d%s | $6 = %s%-6d%s | $7 = %s%-6d%s         ║%s\n", 
-           PNK, CYN, RST, cpu->banco_regs.reg[4], 
-           CYN, RST, cpu->banco_regs.reg[5], 
-           CYN, RST, cpu->banco_regs.reg[6], 
-           CYN, RST, cpu->banco_regs.reg[7], 
-           PNK, RST);
-           
-    printf("%s╚════════════════════════════════════════════════════════════════╝%s\n", PNK, RST);
-
- 
-    
-    printf(" %s🔮 Magia Assembly: %s", PNK, GRN);
-    printaInstrucaoAsm(mem->inst[cpu->banco_regs.pc]);
-    executar_estado(cpu, mem);
-    printf("%s\n", RST);
+    executar_estado(cpu, &mem);
+    printaInstrucaoAsm(cpu->banco_regs.IR);
 }
 
 // typedef struct {
