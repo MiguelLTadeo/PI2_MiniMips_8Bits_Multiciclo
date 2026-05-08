@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 typedef enum{
     tipo_I,
@@ -345,7 +346,7 @@ void executar_ula_com_mux(multiciclo *cpu) {
         case 0b10:
             // Extensão de sinal de 6 bits para 8 bits
             // RI[5-0]
-            int imm = cpu->banco_regs.IR & 0x3F;
+            int imm = cpu->banco_regs.IR.imm;
             // Se bit 5 = 1, estende com 1s
             if (imm & 0x20) imm |= 0xC0;
             entrada_b = imm;
@@ -430,7 +431,7 @@ void definir_sinais(multiciclo *cpu) {
             cpu->sinais.ULAFonteA  = 1;    // A = reg A
             cpu->sinais.ULAFonteB  = 0b00; // B = reg B
             // ControleUla vem do Funct
-            cpu->sinais.ControleUla= cpu->banco_regs.IR & 0x7; // RI[2-0]
+            cpu->sinais.ControleUla= cpu->banco_regs.IR.funct; // RI[2-0]
             cpu->sinais.RegDst     = 1;
             break;
             
@@ -456,7 +457,26 @@ void definir_sinais(multiciclo *cpu) {
     }
 }
 
-void executar_estado(multiciclo *cpu, memoria_instrucao mem) {
+void transicionar_estado(multiciclo *cpu, int opcode) {
+    switch(opcode) {
+        case 0x0: // tipo R (0000)
+            cpu->estado = 7;
+            break;
+        case 0x4: // addi (0100)
+        case 0xB: // lw   (1011)
+        case 0xF: // sw   (1111)
+            cpu->estado = 2;
+            break;
+        case 0x8: // beq  (1000)
+            cpu->estado = 9;
+            break;
+        case 0x2: // j    (0010)
+            cpu->estado = 10;
+            break;
+    }
+}
+
+void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
     // Define sinais do estado atual
     definir_sinais(cpu);
     
@@ -468,8 +488,8 @@ void executar_estado(multiciclo *cpu, memoria_instrucao mem) {
     
     switch(cpu->estado) {
         case 0: // Busca
-            // IR = Mem[PC]
-            cpu->banco_regs.IR = /* lê da sua memória */ ;
+            // IR = Mem[PC]  -> Aqui usamos mem->
+            cpu->banco_regs.IR = mem->inst[cpu->banco_regs.pc];
             // ULA calcula PC + 1
             executar_ula_com_mux(cpu);
             // PC = PC + 1
@@ -477,42 +497,46 @@ void executar_estado(multiciclo *cpu, memoria_instrucao mem) {
             cpu->estado = 1;
             break;
             
-        case 1: // Decodificação
+        case 1: { // Decodificação (COM CHAVES)
             // Lê registradores
             ler_registradores(cpu);
             // ULA calcula endereço branch
             executar_ula_com_mux(cpu);
             // Salva em ULASaida para possível branch
             // Transição baseada no opcode
-            int opcode = (cpu->inter.IR >> 12) & 0xF;
+            int opcode = cpu->banco_regs.IR.opcode;
             transicionar_estado(cpu, opcode);
             break;
+        }
             
-        case 2: // Cálculo endereço
+        case 2: { // Cálculo endereço (COM CHAVES)
             executar_ula_com_mux(cpu);
-            int op = (cpu->inter.IR >> 12) & 0xF;
-            if (op == 0xB) cpu->estado = 3;      // lw
-            else if (op == 0xF) cpu->estado = 5; // sw
-            else if (op == 0x4) cpu->estado = 6; // addi
+            int opcode = cpu->banco_regs.IR.opcode;
+            if (opcode == 0xB) cpu->estado = 3;      // lw
+            else if (opcode == 0xF) cpu->estado = 5; // sw
+            else if (opcode == 0x4) cpu->estado = 6; // addi
             break;
+        }
             
         case 3: // lw lê memória
-            cpu->inter.MDR = mem[cpu->inter.ULASaida].dado;
+            // Aqui usamos mem->
+            cpu->banco_regs.MDR = mem->inst[cpu->banco_regs.ULASaida].dados;
             cpu->estado = 4;
             break;
             
         case 4: // lw escreve registrador
-            escrever_registrador(cpu, cpu->inter.MDR);
+            escrever_registrador(cpu, cpu->banco_regs.MDR);
             cpu->estado = 0;
             break;
             
         case 5: // sw escreve memória
-            mem[cpu->inter.ULASaida].dado = cpu->inter.B;
+            // Aqui usamos mem->
+            mem->inst[cpu->banco_regs.ULASaida].dados = cpu->banco_regs.B;
             cpu->estado = 0;
             break;
             
         case 6: // addi escreve registrador
-            escrever_registrador(cpu, cpu->inter.ULASaida);
+            escrever_registrador(cpu, cpu->banco_regs.ULASaida);
             cpu->estado = 0;
             break;
             
@@ -522,28 +546,167 @@ void executar_estado(multiciclo *cpu, memoria_instrucao mem) {
             break;
             
         case 8: // Fim tipo R
-            escrever_registrador(cpu, cpu->inter.ULASaida);
+            escrever_registrador(cpu, cpu->banco_regs.ULASaida);
             cpu->estado = 0;
             break;
             
         case 9: // beq
             executar_ula_com_mux(cpu);
             // Lógica: PCEsc = Branch AND Zero
-            if (cpu->ctrl.Branch && cpu->inter.Zero) {
-                cpu->PC = cpu->inter.ULASaida;
+            if (cpu->sinais.Branch && cpu->banco_regs.reg[0]) {
+                cpu->banco_regs.pc = cpu->banco_regs.ULASaida;
             }
             cpu->estado = 0;
             break;
             
         case 10: // jump
             // PC = RI[7-0]
-            cpu->PC = cpu->inter.IR & 0xFF;
+            cpu->banco_regs.pc = cpu->banco_regs.IR.addr;
             cpu->estado = 0;
             break;
     }
     
     // Incrementa contador de clocks
     cpu->total_clocks++;
+}
+
+void printaInstrucaoAsm(instrucao inst){
+    printf("\n");
+    switch (inst.opcode) {
+        case 0: // tipo R
+            switch (inst.funct) {
+                case 0: printf("add $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                case 2: printf("sub $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                case 4: printf("and $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                case 5: printf("or $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+            }
+            break;
+        case 4:  // addi
+            printf("addi $%d, $%d, %d\n", inst.rt, inst.rs, inst.imm); break;
+        case 11: // lw
+            printf("lw $%d, %d($%d)\n", inst.rt, inst.imm, inst.rs); break;
+        
+        case 15: // sw
+            printf("sw $%d, %d($%d)\n", inst.rt, inst.imm, inst.rs); break;
+        
+        case 8: //beq
+            printf("beq $%d, $%d, %d\n", inst.rt, inst.rs, inst.imm); break;
+
+        case 2: //j
+            printf("j %d\n", inst.addr); break;
+    }               
+}
+
+char *traduzEstado(int estado){
+    switch (estado)
+    {
+    case 0:
+        return "BUSCA";
+    break;
+    case 1:
+        return "DECODIFICACAO";
+    break;
+
+    case 7:
+    case 2: 
+    case 9:
+    case 10:
+        return "EXECUCAO";
+    break;
+
+    case 3:
+    case 8:
+    case 6:
+    case 5:
+        return "ACESSO A MEMORIA";
+    break;
+
+    case 4:
+        return "ESCRITA DE REGISTRADOR";
+    break;
+    }
+}
+
+void simular(multiciclo *cpu, memoria_instrucao *mem) {
+    cpu->estado = 0;
+    cpu->total_clocks = 0;
+    
+    while(1) {
+        printf("\n=== Clock %d | Estado %d (%s) | PC %d ===\n",
+            cpu->total_clocks, 
+            cpu->estado, 
+            traduzEstado(cpu->estado), 
+            cpu->banco_regs.pc);
+        printaInstrucaoAsm(mem->inst[cpu->banco_regs.pc]);
+        
+        executar_estado(cpu, mem);
+        sleep(1);
+        
+        
+        // Condição de parada (adapte conforme o professor)
+        if (cpu->banco_regs.pc >= 128) break;      // saiu da área de instruções
+        if (cpu->total_clocks > 1000) break; // proteção
+    }
+    
+    printf("\n=== FIM ===\n");
+    printf("Total de clocks: %d\n", cpu->total_clocks);
+    
+    // Imprime registradores finais
+    for (int i = 0; i < 8; i++) {
+        printf("$%d = %d\n", i, cpu->banco_regs.reg[i]);
+    }
+}
+
+void clock(multiciclo *cpu, memoria_instrucao *mem) {
+    // Definindo as cores do arco-íris terminal (Padrão ANSI)
+    const char *RST  = "\033[0m";    // Reseta a cor
+    const char *PNK  = "\033[1;35m"; // Rosa / Magenta
+    const char *CYN  = "\033[1;36m"; // Ciano
+    const char *YEL  = "\033[1;33m"; // Amarelo
+    const char *GRN  = "\033[1;32m"; // Verde
+
+    printf("\n");
+    printf("%s╔════════════════════════════════════════════════════════════════╗%s\n", PNK, RST);
+    
+    // Cabeçalho do Relógio
+    printf("%s║ ⏳✨ PULSO DE CLOCK: %s%-41d %s║%s\n", PNK, YEL, cpu->total_clocks, PNK, RST);
+    printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
+    
+    // Status do Sistema
+    printf("%s║ %s📍 PC Atual %s: %-49d%s║%s\n", PNK, CYN, RST, cpu->banco_regs.pc, PNK, RST);
+    printf("%s║ %s🚥 Estado   %s: %d -> %-43s%s║%s\n", PNK, CYN, RST, cpu->estado, traduzEstado(cpu->estado), PNK, RST);
+    printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
+    
+    // Banco de Registradores (O VIP da Memória)
+    printf("%s║ 💎💅 BANCO DE REGISTRADORES VIP 💅💎                           ║%s\n", PNK, RST);
+    printf("%s╠════════════════════════════════════════════════════════════════╣%s\n", PNK, RST);
+    
+    // Registradores formatados em duas linhas elegantes
+// Registradores formatados em duas linhas elegantes e alinhadas
+    printf("%s║%s  $0 = %s%-6d%s | $1 = %s%-6d%s | $2 = %s%-6d%s | $3 = %s%-6d%s         ║%s\n", 
+           PNK, CYN, RST, cpu->banco_regs.reg[0], 
+           CYN, RST, cpu->banco_regs.reg[1], 
+           CYN, RST, cpu->banco_regs.reg[2], 
+           CYN, RST, cpu->banco_regs.reg[3], 
+           PNK, RST);
+           
+    printf("%s║%s  $4 = %s%-6d%s | $5 = %s%-6d%s | $6 = %s%-6d%s | $7 = %s%-6d%s         ║%s\n", 
+           PNK, CYN, RST, cpu->banco_regs.reg[4], 
+           CYN, RST, cpu->banco_regs.reg[5], 
+           CYN, RST, cpu->banco_regs.reg[6], 
+           CYN, RST, cpu->banco_regs.reg[7], 
+           PNK, RST);
+           
+    printf("%s╚════════════════════════════════════════════════════════════════╝%s\n", PNK, RST);
+
+    // Executa a engrenagem
+    
+
+    // Printa a instrução com um toque de magia verde
+    printf(" %s🔮 Magia Assembly: %s", PNK, GRN);
+    printaInstrucaoAsm(mem->inst[cpu->banco_regs.pc]);
+    executar_estado(cpu, mem);
+    printf("%s\n", RST);
 }
 
 // typedef struct {

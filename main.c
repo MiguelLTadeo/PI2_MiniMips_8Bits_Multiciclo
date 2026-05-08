@@ -1,12 +1,22 @@
 #include <stdio.h>
 #include <unistd.h>
 #include "mips8bit.h"
+#include <string.h>
 
 int main(){
 
     int op = 0;
 
     memoria_instrucao mem_inst;
+
+    multiciclo cpu;
+
+    // Zera a CPU e a memória logo ao abrir o programa
+    memset(&cpu, 0, sizeof(multiciclo));
+    for(int i = 0; i < 256; i++) {
+        strcpy(mem_inst.inst[i].inst_char, "0000000000000000");
+        mem_inst.inst[i].dados = 0;
+    }
     
     //memoria_dados mem_dados;
 
@@ -55,8 +65,14 @@ int main(){
             break;
             case 4:
                 //imprimeBancoRegs(regs);
+
+                printf("\nIniciando Simulacao...\n");
+                // Passamos o endereco da CPU e da memoria
+                simular(&cpu, &mem_inst); 
+                break;
             break;
             case 5:
+                clock(&cpu, &mem_inst);
                // printaSimulador(regs, &mem_dados, mem_instrucao);
             break;
             case 6:

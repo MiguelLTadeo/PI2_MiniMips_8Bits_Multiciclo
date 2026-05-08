@@ -83,3 +83,16 @@ int executar_ula(multiciclo*cpu, int entrada_a, int entrada_b);
 
 void executar_ula_com_mux(multiciclo *cpu);
 
+void definir_sinais(multiciclo *cpu);
+
+void executar_estado(multiciclo *cpu, memoria_instrucao mem);
+
+void transicionar_estado(multiciclo *cpu, int opcode);
+
+void simular(multiciclo *cpu, memoria_instrucao *mem);
+
+void printaInstrucaoAsm(instrucao inst);
+
+void clock(multiciclo *cpu, memoria_instrucao *mem);
+
+char *traduzEstado(int estado);
