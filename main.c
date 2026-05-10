@@ -64,12 +64,12 @@ int main(){
                 imprimirMemoria(&mem_inst);
             break;
             case 4:
-
+                // falta funcao pra printar os regs aq
 
             break;
             case 5:
                 imprimirMemoria(&mem_inst);
-                // falta algo pra printar os regs aq
+                // falta funcao pra printar os regs aq
             break;
             case 6:
                 //salvar asm
@@ -80,12 +80,12 @@ int main(){
             case 8:
                 printf("\nIniciando Simulacao...\n");
                 imprimirDetalhesInstrucoes(mem_inst);
-                simular(&cpu, mem_inst); 
+                simular(&cpu, &mem_inst); 
                 break;
 
             break;
             case 9:
-                clock(&cpu, mem_inst);
+                clock(&cpu, &mem_inst);
             break;
             case 10:
             //back

@@ -89,10 +89,10 @@ void executar_estado(multiciclo *cpu, memoria_instrucao *mem);
 
 void transicionar_estado(multiciclo *cpu, int opcode);
 
-void simular(multiciclo *cpu, memoria_instrucao mem);
+void simular(multiciclo *cpu, memoria_instrucao *mem);
 
 void printaInstrucaoAsm(instrucao inst);
 
-void clock(multiciclo *cpu, memoria_instrucao mem);
+ void clock(multiciclo *cpu, memoria_instrucao *mem);
 
 char *traduzEstado(int estado);

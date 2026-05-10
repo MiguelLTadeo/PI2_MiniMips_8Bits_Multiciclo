@@ -30,7 +30,7 @@
 
     typedef struct {
         int reg[8];
-        instrucao IR;       //reg de instrucao
+        instrucao *IR;       //reg de instrucao
         int MDR;      //reg de dados
         int A, B;     //reg dos dados lidos do banco de regs
         int ULASaida; //saída da ula
@@ -266,8 +266,8 @@
 
     // rs = RI[11-9], rt = RI[8-6], rd = RI[5-3]
     void ler_registradores(multiciclo *cpu) {
-        int rs = cpu->banco_regs.IR.rs;
-        int rt = cpu->banco_regs.IR.rt;  // bits [8-6]
+        int rs = cpu->banco_regs.IR->rs;
+        int rt = cpu->banco_regs.IR->rt;  // bits [8-6]
         
         cpu->banco_regs.A = cpu->banco_regs.reg[rs];
         cpu->banco_regs.B = cpu->banco_regs.reg[rt];
@@ -279,8 +279,8 @@
         if (cpu->sinais.EscReg) {
         
             // pegamos os valores que a função  já salvou no IR
-            int rt = cpu->banco_regs.IR.rt;
-            int rd = cpu->banco_regs.IR.rd;
+            int rt = cpu->banco_regs.IR->rt;
+            int rd = cpu->banco_regs.IR->rd;
             
             int reg_dest;
 
@@ -351,7 +351,7 @@
                 break;
             case 2:
                 // Extensão de sinal de 6 bits para 8 bits
-                int imm = cpu->banco_regs.IR.imm;
+                int imm = cpu->banco_regs.IR->imm;
                 if (imm & 0x20) imm |= 0xC0;
                 entrada_b = imm;
                 break;
@@ -380,24 +380,24 @@
                 cpu->sinais.PCEsc      = 1;
                 cpu->sinais.IouD       = 0;
                 cpu->sinais.IREsc      = 1;
-                cpu->sinais.ULAFonteB  = 1; // B = 1
-                cpu->sinais.ULAFonteA  = 0;    // A = PC
-                cpu->sinais.ControleUla= 0; // Adição
-                cpu->sinais.FontePC    = 0;  // PC + 1
+                cpu->sinais.ULAFonteB  = 1; 
+                cpu->sinais.ULAFonteA  = 0;    
+                cpu->sinais.ControleUla= 0;
+                cpu->sinais.FontePC    = 0; 
                 cpu->sinais.RegDst     = 1;
                 break;
                 
             case 1: // Decodificação
-                cpu->sinais.ULAFonteA  = 0;    // A = PC
-                cpu->sinais.ULAFonteB  = 2; // B = SignExt
-                cpu->sinais.ControleUla= 0; // Adição
+                cpu->sinais.ULAFonteA  = 0;    
+                cpu->sinais.ULAFonteB  = 2; // 
+                cpu->sinais.ControleUla= 0; // 
                 cpu->sinais.RegDst     = 1;
                 break;
                 
             case 2: // Cálculo endereço (lw/sw/addi)
-                cpu->sinais.ULAFonteA  = 1;    // A = reg A
-                cpu->sinais.ULAFonteB  = 2; // B = SignExt
-                cpu->sinais.ControleUla= 0; // Adição
+                cpu->sinais.ULAFonteA  = 1;    
+                cpu->sinais.ULAFonteB  = 2; 
+                cpu->sinais.ControleUla= 0; 
                 break;
                 
             case 3: // Acesso memória (lw lê)
@@ -409,7 +409,7 @@
             case 4: // Fim lw (escreve registrador)
                 cpu->sinais.EscReg     = 1;
                 cpu->sinais.MemParaReg = 1;
-                cpu->sinais.RegDst     = 0;    // escreve em rt
+                cpu->sinais.RegDst     = 0;    
                 cpu->sinais.ULAFonteA  = 1;
                 cpu->sinais.ULAFonteB  = 2;
                 break;
@@ -424,37 +424,37 @@
             case 6: // addi (escreve registrador)
                 cpu->sinais.EscMem     = 0;
                 cpu->sinais.EscReg     = 1;
-                cpu->sinais.RegDst     = 0;    // escreve em rt
+                cpu->sinais.RegDst     = 0;   
                 cpu->sinais.MemParaReg = 0;
                 cpu->sinais.ULAFonteA  = 1;
                 cpu->sinais.ULAFonteB  = 2;
                 break;
                 
             case 7: // Execução tipo R
-                cpu->sinais.ULAFonteA  = 1;    // A = reg A
-                cpu->sinais.ULAFonteB  = 0; // B = reg B
-                cpu->sinais.ControleUla= cpu->banco_regs.IR.funct; // RI[2-0]  ControleUla vem do Funct
+                cpu->sinais.ULAFonteA  = 1;    
+                cpu->sinais.ULAFonteB  = 0; 
+                cpu->sinais.ControleUla= cpu->banco_regs.IR->funct; //  ControleUla vem do Funct
                 cpu->sinais.RegDst     = 1;
                 break;
                 
             case 8: // Fim tipo R 
-                cpu->sinais.RegDst     = 1;    // escreve em rd
+                cpu->sinais.RegDst     = 1;   
                 cpu->sinais.EscReg     = 1;
                 cpu->sinais.MemParaReg = 0;
                 break;
                 
             case 9: // beq
-                cpu->sinais.ULAFonteA  = 1;    // A = reg A
-                cpu->sinais.ULAFonteB  = 0; // B = reg B
-                cpu->sinais.ControleUla= 2; // Subtração
+                cpu->sinais.ULAFonteA  = 1;    
+                cpu->sinais.ULAFonteB  = 0; 
+                cpu->sinais.ControleUla= 2; 
                 cpu->sinais.Branch     = 1;
                 cpu->sinais.PCEsc      = 0;
-                cpu->sinais.FontePC    = 1;  // ULASaída
+                cpu->sinais.FontePC    = 1;  
                 break;
                 
             case 10: // jump
                 cpu->sinais.PCEsc      = 1;
-                cpu->sinais.FontePC    = 2;  // RI[7-0]
+                cpu->sinais.FontePC    = 2;  
                 break;
         }
     }
@@ -480,7 +480,7 @@
     }
 
     void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
-        // Define sinais do estado atual
+        // estado atual
         definir_sinais(cpu);
         
     
@@ -496,7 +496,7 @@
         switch(cpu->estado) {
             case 0: // Busca
                 // IR = Mem[PC
-                cpu->banco_regs.IR = mem->inst[cpu->banco_regs.pc];
+                cpu->banco_regs.IR = &mem->inst[cpu->banco_regs.pc];
                 // ULA calcula PC + 1
                 executar_ula_com_mux(cpu);
                 // PC = PC + 1
@@ -507,14 +507,14 @@
             case 1: { // Decodificação
                 ler_registradores(cpu);
                 executar_ula_com_mux(cpu);// ULA vai calcula endereço branch
-                int opcode = cpu->banco_regs.IR.opcode;
+                int opcode = cpu->banco_regs.IR->opcode;
                 transicionar_estado(cpu, opcode);
                 break;
             }
                 
             case 2: { // Cálculo endereço
                 executar_ula_com_mux(cpu);
-                int opcode = cpu->banco_regs.IR.opcode;
+                int opcode = cpu->banco_regs.IR->opcode;
                 if (opcode == 11) cpu->estado = 3;      // lw
                 else if (opcode == 15) cpu->estado = 5; // sw
                 else if (opcode == 4) cpu->estado = 6; // addi
@@ -562,7 +562,7 @@
                 
             case 10: // jump
                 // PC = RI[7-0]
-                cpu->banco_regs.pc = cpu->banco_regs.IR.addr;
+                cpu->banco_regs.pc = cpu->banco_regs.IR->addr;
                 cpu->estado = 0;
                 break;
         }
@@ -628,7 +628,7 @@
         }
     }
 
-    void simular(multiciclo *cpu, memoria_instrucao mem) {
+    void simular(multiciclo *cpu, memoria_instrucao *mem) {
         cpu->estado = 0;
         cpu->total_clocks = 0;
         while(1) {
@@ -638,8 +638,8 @@
                 traduzEstado(cpu->estado), 
                 cpu->banco_regs.pc);
             
-            executar_estado(cpu, &mem);
-            printaInstrucaoAsm(cpu->banco_regs.IR);
+            executar_estado(cpu, mem);
+            printaInstrucaoAsm(*cpu->banco_regs.IR);
             sleep(1);
             
             
@@ -656,13 +656,13 @@
         }
     }
 
-    void clock(multiciclo *cpu, memoria_instrucao mem) {
+    void clock(multiciclo *cpu, memoria_instrucao *mem) {
         printf("\n=== Clock %d | Estado %d (%s) | PC %d ===\n",
             cpu->total_clocks, 
             cpu->estado, 
             traduzEstado(cpu->estado), 
             cpu->banco_regs.pc);
         
-        executar_estado(cpu, &mem);
-        printaInstrucaoAsm(cpu->banco_regs.IR);
+        executar_estado(cpu, mem);
+        printaInstrucaoAsm(*cpu->banco_regs.IR);
     }
