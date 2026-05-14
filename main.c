@@ -14,6 +14,9 @@ int main(){
     cpu.estado = 0;
     cpu.total_clocks = 0;
 
+    back_simulador historico[256];
+    int topo = 0;
+
     // Zera a CPU e a memória logo ao abrir o programa
     memset(&cpu, 0, sizeof(multiciclo));
     for(int i = 0; i < 256; i++) {
@@ -64,12 +67,12 @@ int main(){
                 imprimirMemoria(&mem_inst);
             break;
             case 4:
-                // falta funcao pra printar os regs aq
+                imprimirRegistradores(&cpu);
 
             break;
             case 5:
                 imprimirMemoria(&mem_inst);
-                // falta funcao pra printar os regs aq
+                imprimirRegistradores(&cpu);
             break;
             case 6:
                 //salvar asm
@@ -84,11 +87,26 @@ int main(){
                 break;
 
             break;
-            case 9:
-                clock(&cpu, &mem_inst);
+            case 9:  // step — salvar hist antes de dar o clock
+                if(topo < 256){
+                    historico[topo].hist_cpu = cpu;
+                    historico[topo].hist_mem = mem_inst;
+                    topo++;
+                    clock(&cpu, &mem_inst);
+                }else{
+                    printf("Limite de histórico atingido!\n");
+                }
             break;
-            case 10:
-            //back
+            case 10:  // back
+                if(topo == 0){
+                    printf("Nenhum estado anterior.\n");
+                }else{
+                    topo--;
+                    cpu = historico[topo].hist_cpu;
+                    mem_inst = historico[topo].hist_mem;
+                    printf("Voltou um clock. Estado atual: %s | PC: %d | Clocks: %d\n",
+                        traduzEstado(cpu.estado), cpu.banco_regs.pc, cpu.total_clocks);
+                }
             break;
             default:
 
