@@ -20,18 +20,17 @@ typedef struct{
     int dados;
 } instrucao;
 
-typedef struct {
+typedef struct{
     instrucao inst[256];
     int tamanho;
 }memoria_instrucao;
 
-typedef struct {
+typedef struct{
     int reg[8];
-    int IR;      
-    int MDR;      
-    int A, B;     
-    int ULASaida; 
-    int Zero; 
+    instrucao *IR;       //reg de instrucao
+    int MDR;      //reg de dados
+    int A, B;     //reg dos dados lidos do banco de regs
+    int ULASaida; //saída da ula
     int pc;
 }Banco;
 
@@ -40,10 +39,6 @@ typedef struct{
     int resultado;
     int flag_zero;
 }resultado_ula; 
-
-typedef struct{
-    Banco hist_banco;
-}back_simulador;
 
 typedef struct {
     int PCEsc;       // 1 bit
@@ -66,6 +61,11 @@ typedef struct {                // 8 bits
     int estado;              // estado atual da FSM
     int total_clocks;        // contador de clocks
 }multiciclo;
+
+typedef struct{
+    multiciclo hist_cpu;
+    memoria_instrucao hist_mem;
+}back_simulador;
 
 void lerMemoria(memoria_instrucao *mInst);
 
@@ -93,6 +93,8 @@ void simular(multiciclo *cpu, memoria_instrucao *mem);
 
 void printaInstrucaoAsm(instrucao inst);
 
- void clock(multiciclo *cpu, memoria_instrucao *mem);
+void clock(multiciclo *cpu, memoria_instrucao *mem);
 
 char *traduzEstado(int estado);
+
+void imprimirRegistradores(multiciclo *cpu);

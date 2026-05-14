@@ -43,10 +43,6 @@
         int flag_zero;
     }resultado_ula; 
 
-    typedef struct{
-        Banco hist_banco;
-    }back_simulador;
-
     typedef struct {
         int PCEsc;       
         int IouD;        
@@ -68,6 +64,11 @@
         int estado;              // estado atual da FSM
         int total_clocks;        // contador de clocks
     }multiciclo;
+
+    typedef struct{
+        multiciclo hist_cpu;
+        memoria_instrucao hist_mem;
+    }back_simulador;
 
     void converterInstrucao(instrucao *nova_instrucao) {
         char opcode[5], rs[4], rt[4], rd[4], funct[4], imm[7], addr[13];
@@ -665,4 +666,37 @@
         
         executar_estado(cpu, mem);
         printaInstrucaoAsm(*cpu->banco_regs.IR);
+    }
+
+    void imprimirRegistradores(multiciclo *cpu) {
+        printf("\n========================================\n");
+        printf("           BANCO DE REGISTRADORES       \n");
+        printf("========================================\n");
+        printf(" Reg | Decimal | Binario (8 bits)\n");
+        printf(" ----|---------|------------------\n");
+
+        for (int i = 0; i < 8; i++) {
+            int val = cpu->banco_regs.reg[i];
+
+            char bin[9];
+            for (int b = 7; b >= 0; b--) {
+                bin[7 - b] = ((val >> b) & 1) ? '1' : '0';
+            }
+            bin[8] = '\0';
+
+            printf("  $%d | %7d | %s\n", i, val, bin);
+        }
+
+        printf("----------------------------------------\n");
+        printf("  PC | %7d\n", cpu->banco_regs.pc);
+        printf("  IR | opcode=%-2d  rs=%-2d  rt=%-2d  rd=%-2d\n",
+            cpu->banco_regs.IR->opcode,
+            cpu->banco_regs.IR->rs,
+            cpu->banco_regs.IR->rt,
+            cpu->banco_regs.IR->rd);
+        printf(" MDR | %7d\n", cpu->banco_regs.MDR);
+        printf("   A | %7d\n", cpu->banco_regs.A);
+        printf("   B | %7d\n", cpu->banco_regs.B);
+        printf(" ULA | %7d\n", cpu->banco_regs.ULASaida);
+        printf("========================================\n\n");
     }
