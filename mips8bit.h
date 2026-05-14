@@ -98,3 +98,9 @@ void clock(multiciclo *cpu, memoria_instrucao *mem);
 char *traduzEstado(int estado);
 
 void imprimirRegistradores(multiciclo *cpu);
+
+void salvarAsm(memoria_instrucao mInst);
+
+void salvarMem(memoria_instrucao mInst);
+
+void intParaBinario16(int valor, char *buffer);
