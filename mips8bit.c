@@ -700,3 +700,100 @@
         printf(" ULA | %7d\n", cpu->banco_regs.ULASaida);
         printf("========================================\n\n");
     }
+
+
+    void intParaBinario16(int valor, char *buffer){
+    unsigned int v = (unsigned int)valor & 0xFFFF;
+    for(int i = 15; i >= 0; i--){
+        buffer[15-i] = ((v >> i) & 1) ? '1' : '0';
+    }
+    buffer[16] = '\0';
+}
+
+void salvarAsm(memoria_instrucao mInst){
+    FILE *fp = fopen("file.asm", "w");
+
+    if (fp == NULL) {
+        printf("Erro ao abrir arquivo!\n");
+        return;
+    }
+
+    printf("--- Salvando programa em file.asm ---\n");
+
+    for(int i = 0; i < 128; i++){
+        // pula instrucoes vazias
+        if (strcmp(mInst.inst[i].inst_char, "0000000000000000") == 0) continue;
+
+        instrucao inst = mInst.inst[i];
+
+        switch (inst.opcode) {
+            case 0: // tipo R
+                switch (inst.funct) {
+                    case 0: fprintf(fp, "add $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                    case 2: fprintf(fp, "sub $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                    case 4: fprintf(fp, "and $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                    case 5: fprintf(fp, "or $%d, $%d, $%d\n", inst.rd, inst.rs, inst.rt); break;
+                }
+                break;
+            case 4:  // addi
+                fprintf(fp, "addi $%d, $%d, %d\n", inst.rt, inst.rs, inst.imm); break;
+            case 11: // lw
+                fprintf(fp, "lw $%d, %d($%d)\n", inst.rt, inst.imm, inst.rs); break;
+            case 15: // sw
+                fprintf(fp, "sw $%d, %d($%d)\n", inst.rt, inst.imm, inst.rs); break;
+            case 8:  // beq
+                fprintf(fp, "beq $%d, $%d, %d\n", inst.rt, inst.rs, inst.imm); break;
+            case 2:  // j
+                fprintf(fp, "j %d\n", inst.addr); break;
+        }
+    }
+
+    fclose(fp);
+    printf("Arquivo file.asm salvo com sucesso!\n\n");
+}
+
+void salvarMem(memoria_instrucao mInst){
+    FILE *fp = fopen("file.mem", "w");
+
+    if (fp == NULL) {
+        printf("Erro ao abrir arquivo!\n");
+        return;
+    }
+
+    printf("--- Salvando memoria em file.mem ---\n");
+
+    // acha a ultima instrucao nao vazia (pra nao escrever 128 linhas de zero)
+    int ultimaInst = -1;
+    for(int i = 0; i < 128; i++){
+        if (strcmp(mInst.inst[i].inst_char, "0000000000000000") != 0) {
+            ultimaInst = i;
+        }
+    }
+
+    // escreve a secao de instrucoes (inst_char nao muda em runtime, ta consistente)
+    for(int i = 0; i <= ultimaInst; i++){
+        fprintf(fp, "%s\n", mInst.inst[i].inst_char);
+    }
+
+    // separador
+    fprintf(fp, ".data\n");
+
+    // acha o ultimo dado nao-zero
+    int ultimoDado = -1;
+    for(int i = 128; i < 256; i++){
+        if (mInst.inst[i].dados != 0) {
+            ultimoDado = i;
+        }
+    }
+
+    // escreve a secao de dados convertendo o campo 'dados' atual pra binario
+    // (precisa converter porque o sw atualiza dados, mas nao atualiza inst_char)
+    char buffer[17];
+    for(int i = 128; i <= ultimoDado; i++){
+        intParaBinario16(mInst.inst[i].dados, buffer);
+        fprintf(fp, "%s\n", buffer);
+    }
+
+    fclose(fp);
+    printf("Arquivo file.mem salvo com sucesso!\n\n");
+}
