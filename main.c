@@ -75,10 +75,10 @@ int main(){
                 imprimirRegistradores(&cpu);
             break;
             case 6:
-                //salvar asm
+                salvarAsm(mem_inst);
             break;
             case 7:
-                //salvar .dat
+                salvarMem(mem_inst);
             break;
             case 8:
                 printf("\nIniciando Simulacao...\n");
