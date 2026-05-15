@@ -682,17 +682,24 @@
         cpu->estado = 0;
         cpu->total_clocks = 0;
         while(1) {
-            printf("\n=== Clock %d | Estado %d (%s) | PC %d ===\n",
-                cpu->total_clocks, 
-                cpu->estado, 
-                traduzEstado(cpu->estado), 
-                cpu->banco_regs.pc);
-            executar_estado(cpu, mem);
-            contabilizaEstatisticas(*cpu->banco_regs.IR, stats);
-            if(ativaStats==1){
-                imprimirEstatisticas(*stats);
+            printf("=== Clock %d | Estado %d (%s) | PC %d ===\n",
+                cpu->total_clocks, cpu->estado, traduzEstado(cpu->estado), cpu->banco_regs.pc);
+            
+            // se já tem instrução carregada no IR (depois do primeiro Busca), mostra qual é
+            if (cpu->banco_regs.IR != NULL && cpu->estado != 0) {
+                printf("Instrução atual: ");
+                printaInstrucaoAsm(*cpu->banco_regs.IR);
             }
-            printaInstrucaoAsm(*cpu->banco_regs.IR);
+            
+            int estado_antes = cpu->estado;
+            executar_estado(cpu, mem);
+            
+            // contabiliza só ao decodificar (1 vez por instrução)
+            if (estado_antes == 0) {
+                contabilizaEstatisticas(*cpu->banco_regs.IR, stats);
+            }
+            
+            if (ativaStats) imprimirEstatisticas(*stats);
             printf("-----------------------------------------------------------\n");
             sleep(1);
             
@@ -712,17 +719,23 @@
 
     void clock(multiciclo *cpu, memoria_instrucao *mem, estatisticas *stats, int ativaStats) {
         printf("=== Clock %d | Estado %d (%s) | PC %d ===\n",
-            cpu->total_clocks, 
-            cpu->estado, 
-            traduzEstado(cpu->estado), 
-            cpu->banco_regs.pc);
-
-        executar_estado(cpu, mem);
-        contabilizaEstatisticas(*cpu->banco_regs.IR, stats);
-        if(ativaStats==1){
-            imprimirEstatisticas(*stats);
+            cpu->total_clocks, cpu->estado, traduzEstado(cpu->estado), cpu->banco_regs.pc);
+        
+        // se já tem instrução carregada no IR (depois do primeiro Busca), mostra qual é
+        if (cpu->banco_regs.IR != NULL && cpu->estado != 0) {
+            printf("Instrução atual: ");
+            printaInstrucaoAsm(*cpu->banco_regs.IR);
         }
-        printaInstrucaoAsm(*cpu->banco_regs.IR);
+        
+        int estado_antes = cpu->estado;
+        executar_estado(cpu, mem);
+        
+        // contabiliza só ao decodificar (1 vez por instrução)
+        if (estado_antes == 0) {
+            contabilizaEstatisticas(*cpu->banco_regs.IR, stats);
+        }
+        
+        if (ativaStats) imprimirEstatisticas(*stats);
     }
 
     void imprimirRegistradores(multiciclo *cpu) {
