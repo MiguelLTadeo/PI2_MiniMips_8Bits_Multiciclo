@@ -779,7 +779,6 @@ void salvarAsm(memoria_instrucao mInst){
 
     for(int i = 0; i < 128; i++){
         // pula instrucoes vazias
-        if (strcmp(mInst.inst[i].inst_char, "0000000000000000") == 0) continue;
 
         instrucao inst = mInst.inst[i];
 

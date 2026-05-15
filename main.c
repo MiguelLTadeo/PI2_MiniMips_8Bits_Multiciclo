@@ -21,8 +21,12 @@ int main(){
     memset(&cpu, 0, sizeof(multiciclo));
     for(int i = 0; i < 256; i++) {
         strcpy(mem_inst.inst[i].inst_char, "0000000000000000");
-        mem_inst.inst[i].dados = 0;
+        converterInstrucao(&mem_inst.inst[i]);
     }
+    mem_inst.tamanho = 0;
+
+    // IR aponta pra uma instrução válida (mesmo que zerada)
+    cpu.banco_regs.IR = &mem_inst.inst[0];
 
     estatisticas stats;
 

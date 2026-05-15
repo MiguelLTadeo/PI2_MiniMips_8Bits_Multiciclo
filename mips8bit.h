@@ -76,6 +76,8 @@ typedef struct{
 
 void lerMemoria(memoria_instrucao *mInst);
 
+void converterInstrucao(instrucao *nova_instrucao);
+
 void carregarInstrucoes(memoria_instrucao *mInst, FILE *fp);
 
 void imprimirMemoria(memoria_instrucao *mInst);
