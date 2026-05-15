@@ -67,6 +67,13 @@ typedef struct{
     memoria_instrucao hist_mem;
 }back_simulador;
 
+typedef struct{
+    int R;
+    int I;
+    int J;
+    int Indef;
+}estatisticas;
+
 void lerMemoria(memoria_instrucao *mInst);
 
 void carregarInstrucoes(memoria_instrucao *mInst, FILE *fp);
@@ -75,7 +82,7 @@ void imprimirMemoria(memoria_instrucao *mInst);
 
 void imprimirDetalhesInstrucoes(memoria_instrucao mInst);
 
-void ler_registradores(multiciclo *cpu);
+void ler_registradoresRs_Rt(multiciclo *cpu);
 
 void escrever_registrador(multiciclo *cpu, int valor);
 
@@ -89,11 +96,11 @@ void executar_estado(multiciclo *cpu, memoria_instrucao *mem);
 
 void transicionar_estado(multiciclo *cpu, int opcode);
 
-void simular(multiciclo *cpu, memoria_instrucao *mem);
+void simular(multiciclo *cpu, memoria_instrucao *mem, estatisticas *stats, int ativaStats);
 
 void printaInstrucaoAsm(instrucao inst);
 
-void clock(multiciclo *cpu, memoria_instrucao *mem);
+void clock(multiciclo *cpu, memoria_instrucao *mem, estatisticas *stats, int ativaStats);
 
 char *traduzEstado(int estado);
 
@@ -104,3 +111,7 @@ void salvarAsm(memoria_instrucao mInst);
 void salvarMem(memoria_instrucao mInst);
 
 void intParaBinario16(int valor, char *buffer);
+
+void contabilizaEstatisticas(instrucao inst,estatisticas *stats);
+
+void imprimirEstatisticas(estatisticas stats);

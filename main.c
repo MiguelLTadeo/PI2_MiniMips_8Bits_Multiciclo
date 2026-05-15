@@ -23,6 +23,14 @@ int main(){
         strcpy(mem_inst.inst[i].inst_char, "0000000000000000");
         mem_inst.inst[i].dados = 0;
     }
+
+    estatisticas stats;
+
+    stats.I=0;
+    stats.R=0;
+    stats.J=0;
+    stats.Indef=0;
+    int ativaStats=0;
     
     //memoria_dados mem_dados;
 
@@ -40,6 +48,7 @@ int main(){
     //int topo = 0;
 
     do{
+        printf("-----------------------------------------------------------\n");
         printf("1 - Carregar memória (.mem)\n");
         printf("2 - Imprimir instruções\n");
         printf("3 - Imprimir memória(dados e intruções)\n");
@@ -50,8 +59,9 @@ int main(){
         printf("8 - Executar Programa (run)\n");
         printf("9 - Dar um clock (Step)\n");
         printf("10 - Volta uma instrução (Back)\n");
+        printf("11 - Ativar estatísticas\n");
         printf("12 - Fechar programa\n");
-
+        printf("-----------------------------------------------------------\n");
         scanf("%d", &op);
 
         getchar();
@@ -83,7 +93,7 @@ int main(){
             case 8:
                 printf("\nIniciando Simulacao...\n");
                 imprimirDetalhesInstrucoes(mem_inst);
-                simular(&cpu, &mem_inst); 
+                simular(&cpu, &mem_inst, &stats, ativaStats); 
                 break;
 
             break;
@@ -92,7 +102,7 @@ int main(){
                     historico[topo].hist_cpu = cpu;
                     historico[topo].hist_mem = mem_inst;
                     topo++;
-                    clock(&cpu, &mem_inst);
+                    clock(&cpu, &mem_inst, &stats, ativaStats);
                 }else{
                     printf("Limite de histórico atingido!\n");
                 }
@@ -106,6 +116,15 @@ int main(){
                     mem_inst = historico[topo].hist_mem;
                     printf("Voltou um clock. Estado atual: %s | PC: %d | Clocks: %d\n",
                         traduzEstado(cpu.estado), cpu.banco_regs.pc, cpu.total_clocks);
+                }
+            break;
+            case 11:
+                if(ativaStats==0){
+                    printf("LIGADO!\n");
+                    ativaStats=1;
+                }else{
+                    printf("DESLIGADO!\n");
+                    ativaStats=0;
                 }
             break;
             default:

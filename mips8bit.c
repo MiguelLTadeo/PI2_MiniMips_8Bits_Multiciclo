@@ -70,6 +70,13 @@
         memoria_instrucao hist_mem;
     }back_simulador;
 
+    typedef struct{
+        int R;
+        int I;
+        int J;
+        int Indef;
+    }estatisticas;
+
     void converterInstrucao(instrucao *nova_instrucao) {
         char opcode[5], rs[4], rt[4], rd[4], funct[4], imm[7], addr[13];
 
@@ -266,7 +273,7 @@
 
 
     // rs = RI[11-9], rt = RI[8-6], rd = RI[5-3]
-    void ler_registradores(multiciclo *cpu) {
+    void ler_registradoresRs_Rt(multiciclo *cpu) {
         int rs = cpu->banco_regs.IR->rs;
         int rt = cpu->banco_regs.IR->rt;  // bits [8-6]
         
@@ -324,8 +331,7 @@
                     cpu->banco_regs.reg[0] = 0;
                 }
         
-        // Limita a 8 bits
-        resultado = resultado & 0xFF;
+
         
         return resultado;
     }
@@ -352,9 +358,9 @@
                 break;
             case 2:
                 // Extensão de sinal de 6 bits para 8 bits
-                int imm = cpu->banco_regs.IR->imm;
-                if (imm & 0x20) imm |= 0xC0;
-                entrada_b = imm;
+                // int imm = cpu->banco_regs.IR->imm;
+                // if (imm & 0x20) imm |= 0xC0;
+                entrada_b = cpu->banco_regs.IR->imm;
                 break;
         }
         
@@ -506,7 +512,7 @@
                 break;
                 
             case 1: { // Decodificação
-                ler_registradores(cpu);
+                ler_registradoresRs_Rt(cpu);
                 executar_ula_com_mux(cpu);// ULA vai calcula endereço branch
                 int opcode = cpu->banco_regs.IR->opcode;
                 transicionar_estado(cpu, opcode);
@@ -553,17 +559,17 @@
                 break;
                 
             case 9: // beq
-                executar_ula_com_mux(cpu);
-                // Lógica: PCEsc = Branch AND Zero
+                int alvo_branch = cpu->banco_regs.ULASaida;  // veio do estado 1
+                executar_ula_com_mux(cpu);                   // agora calcula A - B p/ o Zero
                 if (cpu->sinais.Branch && cpu->banco_regs.reg[0]) {
-                    cpu->banco_regs.pc = cpu->banco_regs.ULASaida;
+                    cpu->banco_regs.pc = alvo_branch;
                 }
                 cpu->estado = 0;
                 break;
                 
             case 10: // jump
                 // PC = RI[7-0]
-                cpu->banco_regs.pc = cpu->banco_regs.IR->addr;
+                cpu->banco_regs.pc = cpu->banco_regs.IR->addr - 1;
                 cpu->estado = 0;
                 break;
         }
@@ -596,7 +602,7 @@
 
             case 2: //j
                 printf("j %d\n", inst.addr); break;
-        }               
+        }       
     }
 
     char *traduzEstado(int estado){
@@ -628,8 +634,51 @@
         break;
         }
     }
+    void contabilizaEstatisticas(instrucao inst,estatisticas *stats){
+        switch(inst.opcode) {
+            case 0: // tipo R 
+                stats->R++;
+                break;
+            case 4: // addi
+            case 11: // lw   
+            case 15: // sw   
+            case 8: // beq  
+                stats->I++;
+                break;
+            case 2: // j    
+                stats->J++;
+                break;
+            default:
+                stats->Indef++;
+                break;
+        }
+    }
 
-    void simular(multiciclo *cpu, memoria_instrucao *mem) {
+    void imprimirEstatisticas(estatisticas stats) {
+        int total = stats.R + stats.I + stats.J + stats.Indef;
+        
+        // Evita divisão por zero se a memória estiver vazia
+        float pR = (total > 0) ? (stats.R * 100.0 / total) : 0;
+        float pI = (total > 0) ? (stats.I * 100.0 / total) : 0;
+        float pJ = (total > 0) ? (stats.J * 100.0 / total) : 0;
+
+        printf("\n  .------------------------------------------.");
+        printf("\n  |        ESTATISTICAS DO PROGRAMA          |");
+        printf("\n  |------------------------------------------|");
+        printf("\n  |  Tipo-R (Aritmeticas): %3d  (%5.1f%%)     |", stats.R, pR);
+        printf("\n  |  Tipo-I (Imediatas):   %3d  (%5.1f%%)     |", stats.I, pI);
+        printf("\n  |  Tipo-J (Jumps):       %3d  (%5.1f%%)     |", stats.J, pJ);
+        
+        if (stats.Indef > 0) {
+            printf("\n  |  Indefinidas:          %3d               |", stats.Indef);
+        }
+
+        printf("\n  |------------------------------------------|");
+        printf("\n  |  TOTAL DE INSTRUCOES:  %3d               |", total);
+        printf("\n  '------------------------------------------'\n");
+    }
+
+    void simular(multiciclo *cpu, memoria_instrucao *mem, estatisticas *stats, int ativaStats) {
         cpu->estado = 0;
         cpu->total_clocks = 0;
         while(1) {
@@ -638,9 +687,13 @@
                 cpu->estado, 
                 traduzEstado(cpu->estado), 
                 cpu->banco_regs.pc);
-            
             executar_estado(cpu, mem);
+            contabilizaEstatisticas(*cpu->banco_regs.IR, stats);
+            if(ativaStats==1){
+                imprimirEstatisticas(*stats);
+            }
             printaInstrucaoAsm(*cpu->banco_regs.IR);
+            printf("-----------------------------------------------------------\n");
             sleep(1);
             
             
@@ -657,14 +710,18 @@
         }
     }
 
-    void clock(multiciclo *cpu, memoria_instrucao *mem) {
-        printf("\n=== Clock %d | Estado %d (%s) | PC %d ===\n",
+    void clock(multiciclo *cpu, memoria_instrucao *mem, estatisticas *stats, int ativaStats) {
+        printf("=== Clock %d | Estado %d (%s) | PC %d ===\n",
             cpu->total_clocks, 
             cpu->estado, 
             traduzEstado(cpu->estado), 
             cpu->banco_regs.pc);
-        
+
         executar_estado(cpu, mem);
+        contabilizaEstatisticas(*cpu->banco_regs.IR, stats);
+        if(ativaStats==1){
+            imprimirEstatisticas(*stats);
+        }
         printaInstrucaoAsm(*cpu->banco_regs.IR);
     }
 
@@ -797,3 +854,5 @@ void salvarMem(memoria_instrucao mInst){
     fclose(fp);
     printf("Arquivo file.mem salvo com sucesso!\n\n");
 }
+
+
