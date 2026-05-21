@@ -35,6 +35,7 @@
         int A, B;     //reg dos dados lidos do banco de regs
         int ULASaida; //saída da ula
         int pc;
+        int flag_zero;
     }Banco;
 
     typedef struct{
@@ -66,16 +67,19 @@
     }multiciclo;
 
     typedef struct{
-        multiciclo hist_cpu;
-        memoria_instrucao hist_mem;
-    }back_simulador;
-
-    typedef struct{
         int R;
         int I;
         int J;
         int Indef;
     }estatisticas;
+
+    typedef struct{
+        multiciclo hist_cpu;
+        memoria_instrucao hist_mem;
+        estatisticas stats;
+    }back_simulador;
+
+
 
     void converterInstrucao(instrucao *nova_instrucao) {
         char opcode[5], rs[4], rt[4], rd[4], funct[4], imm[7], addr[13];
@@ -193,7 +197,7 @@
     void lerMemoria(memoria_instrucao *mInst){
         char arquivo[100];
 
-        printf("Digite o nome do arquivo (sem o .dat): \n");
+        printf("Digite o nome do arquivo (sem o .mem): \n");
         scanf("%94s", arquivo); 
 
         strcat(arquivo, ".mem");
@@ -300,7 +304,7 @@
             }
             
             // garante que vai escrever no registrador 0 
-            if (reg_dest >= 0 && reg_dest < 8) {
+            if (reg_dest > 0 && reg_dest < 8) {
                 cpu->banco_regs.reg[reg_dest] = valor;
             }
         }
@@ -325,11 +329,7 @@
         }
         
         // Flag Zero (usado pelo beq)
-                if (resultado == 0) {
-                    cpu->banco_regs.reg[0] = 1;
-                } else {
-                    cpu->banco_regs.reg[0] = 0;
-                }
+                cpu->banco_regs.flag_zero = (resultado == 0) ? 1 : 0;
         
 
         
@@ -486,9 +486,21 @@
         }
     }
 
+    int traduzir_endereco_dado(int end_logico) {
+        if (end_logico < 0 || end_logico > 255) {
+            printf("[ERRO] Endereco de dado fora do intervalo: %d\n", end_logico);
+            return -1;
+        }
+        if (end_logico < 128) {
+            return end_logico + 128;
+        }
+        return end_logico;
+    }
+
     void executar_estado(multiciclo *cpu, memoria_instrucao *mem) {
         // estado atual
         definir_sinais(cpu);
+        int end_fisico=0;
         
     
         // 0 = PC, 1 = ULASaída
@@ -529,7 +541,10 @@
             }
                 
             case 3: // lw lê memória
-                cpu->banco_regs.MDR = mem->inst[cpu->banco_regs.ULASaida].dados;
+                end_fisico = traduzir_endereco_dado(cpu->banco_regs.ULASaida);
+                if (end_fisico >= 0) {
+                    cpu->banco_regs.MDR = mem->inst[end_fisico].dados;
+                }
                 cpu->estado = 4;
                 break;
                 
@@ -539,7 +554,10 @@
                 break;
                 
             case 5: // sw escreve memória
-                mem->inst[cpu->banco_regs.ULASaida].dados = cpu->banco_regs.B;
+                end_fisico = traduzir_endereco_dado(cpu->banco_regs.ULASaida);
+                if (end_fisico >= 0) {
+                    mem->inst[end_fisico].dados = cpu->banco_regs.B;
+                }
                 cpu->estado = 0;
                 break;
                 
@@ -561,7 +579,7 @@
             case 9: // beq
                 int alvo_branch = cpu->banco_regs.ULASaida;  // veio do estado 1
                 executar_ula_com_mux(cpu);                   // agora calcula A - B p/ o Zero
-                if (cpu->sinais.Branch && cpu->banco_regs.reg[0]) {
+                if (cpu->sinais.Branch && cpu->banco_regs.flag_zero) {
                     cpu->banco_regs.pc = alvo_branch;
                 }
                 cpu->estado = 0;
@@ -569,7 +587,7 @@
                 
             case 10: // jump
                 // PC = RI[7-0]
-                cpu->banco_regs.pc = cpu->banco_regs.IR->addr - 1;
+                cpu->banco_regs.pc = cpu->banco_regs.IR->addr;
                 cpu->estado = 0;
                 break;
         }
@@ -678,6 +696,53 @@
         printf("\n  '------------------------------------------'\n");
     }
 
+        void imprimirRegistradores(multiciclo *cpu) {
+        printf("\n========================================\n");
+        printf("           BANCO DE REGISTRADORES       \n");
+        printf("========================================\n");
+        printf(" Reg | Decimal | Binario (8 bits)\n");
+        printf(" ----|---------|------------------\n");
+
+        for (int i = 0; i < 8; i++) {
+            int val = cpu->banco_regs.reg[i];
+
+            char bin[9];
+            for (int b = 7; b >= 0; b--) {
+                bin[7 - b] = ((val >> b) & 1) ? '1' : '0';
+            }
+            bin[8] = '\0';
+
+            printf("  $%d | %7d | %s\n", i, val, bin);
+        }
+
+        printf("----------------------------------------\n");
+        printf("  PC | %7d\n", cpu->banco_regs.pc);
+        if (cpu->banco_regs.IR != NULL) {
+            printf("  IR | opcode=%-2d  rs=%-2d  rt=%-2d  rd=%-2d\n",
+                cpu->banco_regs.IR->opcode,
+                cpu->banco_regs.IR->rs,
+                cpu->banco_regs.IR->rt,
+                cpu->banco_regs.IR->rd);
+        } else {
+            printf("  IR | (vazio)\n");
+        }
+        printf(" MDR | %7d\n", cpu->banco_regs.MDR);
+        printf("   A | %7d\n", cpu->banco_regs.A);
+        printf("   B | %7d\n", cpu->banco_regs.B);
+        printf(" ULA | %7d\n", cpu->banco_regs.ULASaida);
+        printf("Zero | %7d\n", cpu->banco_regs.flag_zero);
+        printf("========================================\n\n");
+    }
+
+
+    void intParaBinario16(int valor, char *buffer){
+    unsigned int v = (unsigned int)valor & 0xFFFF;
+    for(int i = 15; i >= 0; i--){
+        buffer[15-i] = ((v >> i) & 1) ? '1' : '0';
+    }
+    buffer[16] = '\0';
+}
+
     void simular(multiciclo *cpu, memoria_instrucao *mem, estatisticas *stats, int ativaStats) {
         cpu->estado = 0;
         cpu->total_clocks = 0;
@@ -693,6 +758,7 @@
             
             int estado_antes = cpu->estado;
             executar_estado(cpu, mem);
+            imprimirRegistradores(cpu);
             
             // contabiliza só ao decodificar (1 vez por instrução)
             if (estado_antes == 0) {
@@ -726,9 +792,10 @@
             printf("Instrução atual: ");
             printaInstrucaoAsm(*cpu->banco_regs.IR);
         }
-        
+
         int estado_antes = cpu->estado;
         executar_estado(cpu, mem);
+        imprimirRegistradores(cpu);
         
         // contabiliza só ao decodificar (1 vez por instrução)
         if (estado_antes == 0) {
@@ -738,47 +805,7 @@
         if (ativaStats) imprimirEstatisticas(*stats);
     }
 
-    void imprimirRegistradores(multiciclo *cpu) {
-        printf("\n========================================\n");
-        printf("           BANCO DE REGISTRADORES       \n");
-        printf("========================================\n");
-        printf(" Reg | Decimal | Binario (8 bits)\n");
-        printf(" ----|---------|------------------\n");
 
-        for (int i = 0; i < 8; i++) {
-            int val = cpu->banco_regs.reg[i];
-
-            char bin[9];
-            for (int b = 7; b >= 0; b--) {
-                bin[7 - b] = ((val >> b) & 1) ? '1' : '0';
-            }
-            bin[8] = '\0';
-
-            printf("  $%d | %7d | %s\n", i, val, bin);
-        }
-
-        printf("----------------------------------------\n");
-        printf("  PC | %7d\n", cpu->banco_regs.pc);
-        printf("  IR | opcode=%-2d  rs=%-2d  rt=%-2d  rd=%-2d\n",
-            cpu->banco_regs.IR->opcode,
-            cpu->banco_regs.IR->rs,
-            cpu->banco_regs.IR->rt,
-            cpu->banco_regs.IR->rd);
-        printf(" MDR | %7d\n", cpu->banco_regs.MDR);
-        printf("   A | %7d\n", cpu->banco_regs.A);
-        printf("   B | %7d\n", cpu->banco_regs.B);
-        printf(" ULA | %7d\n", cpu->banco_regs.ULASaida);
-        printf("========================================\n\n");
-    }
-
-
-    void intParaBinario16(int valor, char *buffer){
-    unsigned int v = (unsigned int)valor & 0xFFFF;
-    for(int i = 15; i >= 0; i--){
-        buffer[15-i] = ((v >> i) & 1) ? '1' : '0';
-    }
-    buffer[16] = '\0';
-}
 
 void salvarAsm(memoria_instrucao mInst){
     FILE *fp = fopen("file.asm", "w");

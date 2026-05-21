@@ -105,6 +105,7 @@ int main(){
                 if(topo < 256){
                     historico[topo].hist_cpu = cpu;
                     historico[topo].hist_mem = mem_inst;
+                    historico[topo].stats = stats;
                     topo++;
                     clock(&cpu, &mem_inst, &stats, ativaStats);
                 }else{
@@ -118,6 +119,7 @@ int main(){
                     topo--;
                     cpu = historico[topo].hist_cpu;
                     mem_inst = historico[topo].hist_mem;
+                    stats = historico[topo].stats;
                     printf("Voltou um clock. Estado atual: %s | PC: %d | Clocks: %d\n",
                         traduzEstado(cpu.estado), cpu.banco_regs.pc, cpu.total_clocks);
                 }

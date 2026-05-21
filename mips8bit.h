@@ -32,6 +32,7 @@ typedef struct{
     int A, B;     //reg dos dados lidos do banco de regs
     int ULASaida; //saída da ula
     int pc;
+    int flag_zero;
 }Banco;
 
 typedef struct{
@@ -63,16 +64,17 @@ typedef struct {                // 8 bits
 }multiciclo;
 
 typedef struct{
-    multiciclo hist_cpu;
-    memoria_instrucao hist_mem;
-}back_simulador;
-
-typedef struct{
     int R;
     int I;
     int J;
     int Indef;
 }estatisticas;
+
+typedef struct{
+    multiciclo hist_cpu;
+    memoria_instrucao hist_mem;
+    estatisticas stats;
+}back_simulador;
 
 void lerMemoria(memoria_instrucao *mInst);
 
